@@ -112,7 +112,7 @@ async def on_message(message):
 
         # ---- Embedded Antwort ----
         embed = disnake.Embed(
-            title="🤖 Trust antwortet",
+            title=" Trust antwortet",
             description=ai_reply,
             color=0x00008b
         )
