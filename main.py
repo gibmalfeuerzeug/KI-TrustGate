@@ -4,6 +4,7 @@ from disnake.ext import commands
 from openai import OpenAI
 from flask import Flask
 from threading import Thread
+import time
 
 # Tokens aus Railway Variablen
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -31,6 +32,10 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ---- 10-Minuten Session System ----
+sessions = {}  # user_id: timestamp_of_last_message
+SESSION_DURATION = 10 * 60  # 10 Minuten in Sekunden
+
 
 @bot.event
 async def on_ready():
@@ -48,7 +53,6 @@ async def generate_ai_answer(prompt: str) -> str:
             max_tokens=200
         )
 
-        # ✅ RICHTIGER Zugriff auf die Antwort
         return response.choices[0].message.content
 
     except Exception as e:
@@ -60,14 +64,47 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Reaktion auf "Hey Trust"
-    if message.content.lower().startswith("hey trust"):
+    user_id = message.author.id
+    now = time.time()
+
+    # --- Check if user is in an active 10 min session ---
+    in_session = False
+    if user_id in sessions:
+        if now - sessions[user_id] < SESSION_DURATION:
+            in_session = True
+        else:
+            del sessions[user_id]  # Session expired
+
+    content = message.content.lower()
+
+    # --- Start a new session with "Hey Trust" ---
+    if content.startswith("hey trust"):
         user_input = message.content[9:].strip()
+
+        sessions[user_id] = now  # start session
 
         await message.channel.send("⏳ Einen Moment...")
 
         ai_reply = await generate_ai_answer(user_input)
         await message.channel.send(ai_reply)
+
+        return
+
+    # --- Continue session without "Hey Trust" ---
+    if in_session:
+        sessions[user_id] = now  # extend session timer
+
+        await message.channel.send("⏳ Einen Moment...")
+
+        ai_reply = await generate_ai_answer(message.content.strip())
+        await message.channel.send(ai_reply)
+
+        return
+
+    # --- User outside session must say "Hey Trust" ---
+    if not in_session:
+        await message.channel.send("👋 Bitte starte eine Unterhaltung mit **„Hey Trust“**.")
+        return
 
     await bot.process_commands(message)
 
@@ -76,3 +113,4 @@ async def on_message(message):
 keep_alive()
 
 bot.run(DISCORD_TOKEN)
+
