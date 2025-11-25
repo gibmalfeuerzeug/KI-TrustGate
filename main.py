@@ -12,25 +12,24 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ---- KEEP ALIVE WEB SERVER (für Railway 24/7) + API ENDPOINT ----
+# ---- KEEP ALIVE WEB SERVER (für Railway 24/7) ----
 app = Flask('')
 
 @app.route('/')
 def home():
     return "Trust Bot läuft 24/7 auf Railway!"
 
-# === NEU: API für dein HTML Embed ===
+# OPTIONAL: HTML Chat Support (falls du es nutzt)
 @app.post("/api/chat")
 def api_chat():
     try:
         data = request.json
         prompt = data.get("prompt", "")
 
-        # Anfrage an OpenAI
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Du bist Trust, ein hilfreicher Assistent für Webseiten."},
+                {"role": "system", "content": "Du bist Trust, ein hilfreicher Assistent."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=300
@@ -49,7 +48,6 @@ def run_server():
 def keep_alive():
     thread = Thread(target=run_server)
     thread.start()
-
 # ---------------------------------------------------
 
 intents = disnake.Intents.default()
@@ -61,9 +59,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 sessions = {}  # user_id: timestamp_of_last_message
 SESSION_DURATION = 10 * 60  # 10 Minuten in Sekunden
 
+
 @bot.event
 async def on_ready():
     print(f"🤖 Bot gestartet als {bot.user}")
+
 
 async def generate_ai_answer(prompt: str) -> str:
     try:
@@ -75,10 +75,12 @@ async def generate_ai_answer(prompt: str) -> str:
             ],
             max_tokens=200
         )
+
         return response.choices[0].message.content
 
     except Exception as e:
         return f"⚠️ Ein Fehler ist aufgetreten: {e}"
+
 
 @bot.event
 async def on_message(message):
@@ -107,8 +109,16 @@ async def on_message(message):
         await message.channel.send("⏳ Einen Moment...")
 
         ai_reply = await generate_ai_answer(user_input)
-        await message.channel.send(ai_reply)
 
+        # ---- Embedded Antwort ----
+        embed = disnake.Embed(
+            title="🤖 Trust antwortet",
+            description=ai_reply,
+            color=0x2ECC71
+        )
+        embed.set_footer(text="Trust KI – 10 Minuten Session aktiv")
+
+        await message.channel.send(embed=embed)
         return
 
     # --- Continue session without "Hey Trust" ---
@@ -118,8 +128,16 @@ async def on_message(message):
         await message.channel.send("⏳ Einen Moment...")
 
         ai_reply = await generate_ai_answer(message.content.strip())
-        await message.channel.send(ai_reply)
 
+        # ---- Embedded Antwort ----
+        embed = disnake.Embed(
+            title="🤖 Trust antwortet",
+            description=ai_reply,
+            color=0x3498DB
+        )
+        embed.set_footer(text="Trust KI – Session erneuert")
+
+        await message.channel.send(embed=embed)
         return
 
     # --- User outside session must say "Hey Trust" ---
@@ -133,4 +151,3 @@ async def on_message(message):
 # ---- KEEP BOT + SERVER RUNNING 24/7 ----
 keep_alive()
 bot.run(DISCORD_TOKEN)
-
