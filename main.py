@@ -2,7 +2,7 @@ import os
 import disnake
 from disnake.ext import commands
 from openai import OpenAI
-from flask import Flask
+from flask import Flask, request, jsonify
 from threading import Thread
 import time
 
@@ -12,12 +12,36 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ---- KEEP ALIVE WEB SERVER (für Railway 24/7) ----
+# ---- KEEP ALIVE WEB SERVER (für Railway 24/7) + API ENDPOINT ----
 app = Flask('')
 
 @app.route('/')
 def home():
     return "Trust Bot läuft 24/7 auf Railway!"
+
+# === NEU: API für dein HTML Embed ===
+@app.post("/api/chat")
+def api_chat():
+    try:
+        data = request.json
+        prompt = data.get("prompt", "")
+
+        # Anfrage an OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Du bist Trust, ein hilfreicher Assistent für Webseiten."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300
+        )
+
+        reply = response.choices[0].message.content
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 def run_server():
     app.run(host='0.0.0.0', port=8080)
@@ -25,6 +49,7 @@ def run_server():
 def keep_alive():
     thread = Thread(target=run_server)
     thread.start()
+
 # ---------------------------------------------------
 
 intents = disnake.Intents.default()
@@ -36,11 +61,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 sessions = {}  # user_id: timestamp_of_last_message
 SESSION_DURATION = 10 * 60  # 10 Minuten in Sekunden
 
-
 @bot.event
 async def on_ready():
     print(f"🤖 Bot gestartet als {bot.user}")
-
 
 async def generate_ai_answer(prompt: str) -> str:
     try:
@@ -52,12 +75,10 @@ async def generate_ai_answer(prompt: str) -> str:
             ],
             max_tokens=200
         )
-
         return response.choices[0].message.content
 
     except Exception as e:
         return f"⚠️ Ein Fehler ist aufgetreten: {e}"
-
 
 @bot.event
 async def on_message(message):
@@ -111,6 +132,5 @@ async def on_message(message):
 
 # ---- KEEP BOT + SERVER RUNNING 24/7 ----
 keep_alive()
-
 bot.run(DISCORD_TOKEN)
 
