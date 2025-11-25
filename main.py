@@ -47,7 +47,10 @@ async def generate_ai_answer(prompt: str) -> str:
             ],
             max_tokens=200
         )
-        return response.choices[0].message["content"]
+
+        # ✅ RICHTIGER Zugriff auf die Antwort
+        return response.choices[0].message.content
+
     except Exception as e:
         return f"⚠️ Ein Fehler ist aufgetreten: {e}"
 
