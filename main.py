@@ -19,7 +19,7 @@ app = Flask('')
 def home():
     return "Trust Bot läuft 24/7 auf Railway!"
 
-# OPTIONAL: HTML Chat Support (falls du es nutzt)
+# API für HTML-Frontend
 @app.post("/api/chat")
 def api_chat():
     try:
@@ -63,6 +63,9 @@ SESSION_DURATION = 10 * 60  # 10 Minuten in Sekunden
 @bot.event
 async def on_ready():
     print(f"🤖 Bot gestartet als {bot.user}")
+    await bot.change_presence(
+        activity=disnake.Game(name="Stelle mir eine Frage mit Hey Trust")
+    )
 
 
 async def generate_ai_answer(prompt: str) -> str:
@@ -75,9 +78,7 @@ async def generate_ai_answer(prompt: str) -> str:
             ],
             max_tokens=200
         )
-
         return response.choices[0].message.content
-
     except Exception as e:
         return f"⚠️ Ein Fehler ist aufgetreten: {e}"
 
@@ -100,49 +101,49 @@ async def on_message(message):
 
     content = message.content.lower()
 
-    # --- Start a new session with "Hey Trust" ---
-    if content.startswith("hey trust"):
-        user_input = message.content[9:].strip()
+    # --- Nachrichten starten mit "Hey Trust" ---
+    if content.startswith("hey trust") or in_session:
+        user_input = content[9:].strip() if content.startswith("hey trust") else content
 
-        sessions[user_id] = now  # start session
+        sessions[user_id] = now  # start/extend session
 
-        await message.channel.send("⏳ Einen Moment...")
+        # Versuch DM zu öffnen
+        try:
+            await message.author.send("⏳ Einen Moment...")
+        except disnake.Forbidden:
+            await message.channel.send(
+                f"{message.author.mention}, ich kann dir leider keine DM senden. Bitte öffne DMs mit mir."
+            )
+            return
 
         ai_reply = await generate_ai_answer(user_input)
 
-        # ---- Embedded Antwort ----
+        # ---- Embed-Antwort in DM ----
         embed = disnake.Embed(
-            title=" Trust antwortet",
+            title="🤖 Trust antwortet",
             description=ai_reply,
-            color=0x00008b
+            color=0x3498DB  # Blau
         )
-        embed.set_footer(text="Trust KI – 10 Minuten Session aktiv")
+        footer_text = "Trust KI – 10 Minuten Session aktiv" if content.startswith("hey trust") else "Trust KI – Session erneuert"
+        embed.set_footer(text=footer_text)
 
-        await message.channel.send(embed=embed)
-        return
+        await message.author.send(embed=embed)
 
-    # --- Continue session without "Hey Trust" ---
-    if in_session:
-        sessions[user_id] = now  # extend session timer
-
-        await message.channel.send("Einen Moment...")
-
-        ai_reply = await generate_ai_answer(message.content.strip())
-
-        # ---- Embedded Antwort ----
-        embed = disnake.Embed(
-            title="Trust antwortet dir",
-            description=ai_reply,
-            color=0x00008b
-        )
-        embed.set_footer(text="Trust KI – Session erneuert")
-
-        await message.channel.send(embed=embed)
+        # --- Info im Server-Channel ---
+        if not isinstance(message.channel, disnake.DMChannel):
+            await message.channel.send(
+                f"{message.author.mention}, ich habe dir meine Antwort per DM geschickt 📩"
+            )
         return
 
     # --- User outside session must say "Hey Trust" ---
     if not in_session:
-        await message.channel.send(" Bitte starte eine Unterhaltung mit **„Hey Trust“**.")
+        try:
+            await message.author.send("👋 Bitte starte eine Unterhaltung mit **„Hey Trust“**.")
+        except disnake.Forbidden:
+            await message.channel.send(
+                f"{message.author.mention}, ich kann dir leider keine DM senden. Bitte öffne DMs mit mir."
+            )
         return
 
     await bot.process_commands(message)
