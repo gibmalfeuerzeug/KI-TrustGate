@@ -114,7 +114,7 @@ async def on_message(message):
         embed = disnake.Embed(
             title="🤖 Trust antwortet",
             description=ai_reply,
-            color=0x3498DB
+            color=0x00008b
         )
         embed.set_footer(text="Trust KI – 10 Minuten Session aktiv")
 
