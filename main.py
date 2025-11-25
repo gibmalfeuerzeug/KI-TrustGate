@@ -1,6 +1,6 @@
 import os
-import discord
-from discord.ext import commands
+import disnake
+from disnake.ext import commands
 from openai import OpenAI
 from flask import Flask
 from threading import Thread
@@ -26,7 +26,7 @@ def keep_alive():
     thread.start()
 # ---------------------------------------------------
 
-intents = discord.Intents.default()
+intents = disnake.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
