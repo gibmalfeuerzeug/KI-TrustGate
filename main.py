@@ -114,7 +114,7 @@ async def on_message(message):
         embed = disnake.Embed(
             title="🤖 Trust antwortet",
             description=ai_reply,
-            color=0x2ECC71
+            color=0x3498DB
         )
         embed.set_footer(text="Trust KI – 10 Minuten Session aktiv")
 
@@ -125,13 +125,13 @@ async def on_message(message):
     if in_session:
         sessions[user_id] = now  # extend session timer
 
-        await message.channel.send("⏳ Einen Moment...")
+        await message.channel.send("Einen Moment...")
 
         ai_reply = await generate_ai_answer(message.content.strip())
 
         # ---- Embedded Antwort ----
         embed = disnake.Embed(
-            title="🤖 Trust antwortet",
+            title="Trust antwortet dir",
             description=ai_reply,
             color=0x00008b
         )
