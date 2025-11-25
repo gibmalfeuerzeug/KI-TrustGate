@@ -142,7 +142,7 @@ async def on_message(message):
 
     # --- User outside session must say "Hey Trust" ---
     if not in_session:
-        await message.channel.send("👋 Bitte starte eine Unterhaltung mit **„Hey Trust“**.")
+        await message.channel.send(" Bitte starte eine Unterhaltung mit **„Hey Trust“**.")
         return
 
     await bot.process_commands(message)
